@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="VDP Conv">
+    <meta name="description" content="レトロゲーム機の画面仕様に画像を変換">
+    <meta name="theme-color" content="#e94560">
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="icons/icon-72.png">
+    <link rel="apple-touch-icon" sizes="96x96" href="icons/icon-96.png">
+    <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" sizes="384x384" href="icons/icon-384.png">
+    <link rel="apple-touch-icon" sizes="512x512" href="icons/icon-512.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-96.png">
+
+    <title>Retro VDP Converter</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+        }
+
+        .lang-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .lang-dropdown-btn {
+            background-color: #1a1a2e;
+            border: 1px solid #444;
+            border-radius: 6px;
+            padding: 6px 28px 6px 10px;
+            color: #fff;
+            font-size: 0.85rem;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .lang-dropdown-btn::after {
+            content: '';
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #fff;
+        }
+
+        .lang-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: #2a2a4e;
+            border: 1px solid #444;
+            border-radius: 6px;
+            margin-top: 4px;
+            min-width: 100%;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .lang-dropdown-menu.show {
+            display: block;
+        }
+
+        .lang-dropdown-item {
+            padding: 8px 12px;
+            color: #fff;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .lang-dropdown-item:hover {
+            background-color: #3a3a6e;
+        }
+
+        .lang-dropdown-item.selected {
+            background-color: #e94560;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: clamp(1.5rem, 5vw, 2rem);
+            margin-bottom: 8px;
+            background: linear-gradient(90deg, #e94560, #0f3460);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+        }
+
+        .drop-zone {
+            border: 3px dashed #e94560;
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(233, 69, 96, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            background: rgba(233, 69, 96, 0.2);
+            border-color: #fff;
+        }
+
+        .drop-zone-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .drop-zone-text {
+            font-size: 1.1rem;
+            margin-bottom: 8px;
+        }
+
+        .drop-zone-hint {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .settings {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .settings h2 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            color: #e94560;
+        }
+
+        .setting-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .setting-group {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .setting-group.full-width {
+            flex-basis: 100%;
+        }
+
+        .setting-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-bottom: 6px;
+        }
+
+        select, input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 1rem;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888'%3E%3Cpath d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #e94560;
+        }
+
+        .preview-container {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .preview-container.visible {
+            display: block;
+        }
+
+        .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 500px) {
+            .preview-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .preview-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .preview-box h3 {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .preview-box canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 8px;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+            background: #000;
+        }
+
+        .info-text {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .palette-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .palette-container.visible {
+            display: block;
+        }
+
+        .palette-container h3 {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .palette-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+        }
+
+        .palette-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 2px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 12px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #e94560, #0f3460);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(233, 69, 96, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .status {
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .status.visible {
+            display: block;
+        }
+
+        .status.processing {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .status.success {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        .status.error {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+
+        .specs-info {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .specs-info h3 {
+            color: #e94560;
+            margin-bottom: 8px;
+        }
+
+        .specs-info ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .specs-info li {
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .specs-info li:last-child {
+            border-bottom: none;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="lang-dropdown" id="langDropdown">
+                <div class="lang-dropdown-btn" id="langDropdownBtn">日本語</div>
+                <div class="lang-dropdown-menu" id="langDropdownMenu">
+                    <div class="lang-dropdown-item" data-lang="ja">日本語</div>
+                    <div class="lang-dropdown-item" data-lang="en">English</div>
+                    <div class="lang-dropdown-item" data-lang="zh">中文</div>
+                    <div class="lang-dropdown-item" data-lang="ko">한국어</div>
+                </div>
+            </div>
+        </div>
+
+        <h1>Retro VDP Converter</h1>
+        <p class="subtitle" data-i18n="subtitle">レトロゲーム機の画面仕様に画像を変換</p>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-icon">🎮</div>
+            <div class="drop-zone-text" data-i18n="dropText">画像をドロップ または タップして選択</div>
+            <div class="drop-zone-hint" data-i18n="dropHint">PNG, JPG, GIF, WebP対応</div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="settings">
+            <h2 data-i18n="settings">変換設定</h2>
+            <div class="setting-row">
+                <div class="setting-group full-width">
+                    <label data-i18n="console">ゲーム機</label>
+                    <select id="console"></select>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div class="setting-group">
+                    <label data-i18n="resolution">解像度</label>
+                    <select id="resolution"></select>
+                </div>
+                <div class="setting-group">
+                    <label data-i18n="colorMode">カラーモード</label>
+                    <select id="colorMode"></select>
+                </div>
+            </div>
+            <div class="setting-row">
+                <div class="setting-group">
+                    <label data-i18n="dithering">ディザリング</label>
+                    <select id="dithering"></select>
+                </div>
+                <div class="setting-group">
+                    <label data-i18n="aspectRatio">アスペクト比</label>
+                    <select id="aspectRatio"></select>
+                </div>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="showGrid">
+                <label for="showGrid" data-i18n="showGrid">タイルグリッドを表示</label>
+            </div>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="preview-container" id="previewContainer">
+            <div class="preview-grid">
+                <div class="preview-box">
+                    <h3 data-i18n="original">元画像</h3>
+                    <canvas id="originalCanvas"></canvas>
+                    <p class="info-text" id="originalInfo"></p>
+                </div>
+                <div class="preview-box">
+                    <h3 id="convertedTitle" data-i18n="converted">変換後</h3>
+                    <canvas id="convertedCanvas"></canvas>
+                    <p class="info-text" id="convertedInfo"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="palette-container" id="paletteContainer">
+            <h3><span data-i18n="palette">パレット</span> (<span id="paletteCount">0</span><span data-i18n="colors">色</span>)</h3>
+            <div class="palette-grid" id="paletteGrid"></div>
+        </div>
+
+        <button class="btn btn-primary" id="downloadBtn" disabled data-i18n="download">
+            変換画像をダウンロード
+        </button>
+
+        <div class="specs-info" id="specsInfo">
+            <h3 id="specsTitle">仕様</h3>
+            <ul id="specsList"></ul>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // 多言語対応
+        // ========================================
+        const TRANSLATIONS = {
+            ja: {
+                subtitle: 'レトロゲーム機の画面仕様に画像を変換',
+                dropText: '画像をドロップ または タップして選択',
+                dropHint: 'PNG, JPG, GIF, WebP対応',
+                settings: '変換設定',
+                console: 'ゲーム機',
+                resolution: '解像度',
+                colorMode: 'カラーモード',
+                dithering: 'ディザリング',
+                aspectRatio: 'アスペクト比',
+                showGrid: 'タイルグリッドを表示',
+                original: '元画像',
+                converted: '変換後',
+                palette: 'パレット',
+                colors: '色',
+                download: '変換画像をダウンロード',
+                loading: '画像を読み込み中...',
+                converting: '変換中...',
+                complete: '変換完了!',
+                errorFile: '画像ファイルを選択してください',
+                errorLoad: '画像の読み込みに失敗しました',
+                specs: '仕様',
+                // Dithering options
+                ditherNone: 'なし',
+                ditherFloyd: 'Floyd-Steinberg',
+                ditherOrdered: 'Ordered (Bayer)',
+                // Aspect ratio options
+                aspectFit: 'フィット',
+                aspectFill: 'フィル（トリミング）',
+                aspectStretch: '引き伸ばし',
+                // Console groups
+                groupOther: 'その他',
+                // Console names
+                consoleSnes: 'スーパーファミコン',
+                consoleNes: 'ファミコン',
+                consoleGb: 'ゲームボーイ',
+                consoleGbc: 'ゲームボーイカラー',
+                consoleGba: 'ゲームボーイアドバンス',
+                consoleMd: 'メガドライブ',
+                consoleSms: 'マスターシステム',
+                consoleGg: 'ゲームギア',
+                consolePce: 'PCエンジン',
+                consoleMsx1: 'MSX1',
+                consoleMsx2: 'MSX2',
+                consoleNeogeo: 'ネオジオ'
+            },
+            en: {
+                subtitle: 'Convert images to retro game console specs',
+                dropText: 'Drop image or tap to select',
+                dropHint: 'Supports PNG, JPG, GIF, WebP',
+                settings: 'Conversion Settings',
+                console: 'Console',
+                resolution: 'Resolution',
+                colorMode: 'Color Mode',
+                dithering: 'Dithering',
+                aspectRatio: 'Aspect Ratio',
+                showGrid: 'Show tile grid',
+                original: 'Original',
+                converted: 'Converted',
+                palette: 'Palette',
+                colors: ' colors',
+                download: 'Download converted image',
+                loading: 'Loading image...',
+                converting: 'Converting...',
+                complete: 'Conversion complete!',
+                errorFile: 'Please select an image file',
+                errorLoad: 'Failed to load image',
+                specs: 'Specs',
+                ditherNone: 'None',
+                ditherFloyd: 'Floyd-Steinberg',
+                ditherOrdered: 'Ordered (Bayer)',
+                aspectFit: 'Fit',
+                aspectFill: 'Fill (Crop)',
+                aspectStretch: 'Stretch',
+                groupOther: 'Other',
+                consoleSnes: 'Super Nintendo',
+                consoleNes: 'NES',
+                consoleGb: 'Game Boy',
+                consoleGbc: 'Game Boy Color',
+                consoleGba: 'Game Boy Advance',
+                consoleMd: 'Mega Drive / Genesis',
+                consoleSms: 'Master System',
+                consoleGg: 'Game Gear',
+                consolePce: 'PC Engine / TurboGrafx-16',
+                consoleMsx1: 'MSX1',
+                consoleMsx2: 'MSX2',
+                consoleNeogeo: 'Neo Geo'
+            },
+            zh: {
+                subtitle: '将图像转换为复古游戏机规格',
+                dropText: '拖放图像或点击选择',
+                dropHint: '支持 PNG, JPG, GIF, WebP',
+                settings: '转换设置',
+                console: '游戏机',
+                resolution: '分辨率',
+                colorMode: '颜色模式',
+                dithering: '抖动',
+                aspectRatio: '宽高比',
+                showGrid: '显示网格',
+                original: '原图',
+                converted: '转换后',
+                palette: '调色板',
+                colors: '色',
+                download: '下载转换后的图像',
+                loading: '正在加载图像...',
+                converting: '正在转换...',
+                complete: '转换完成！',
+                errorFile: '请选择图像文件',
+                errorLoad: '图像加载失败',
+                specs: '规格',
+                ditherNone: '无',
+                ditherFloyd: 'Floyd-Steinberg',
+                ditherOrdered: 'Ordered (Bayer)',
+                aspectFit: '适应',
+                aspectFill: '填充（裁剪）',
+                aspectStretch: '拉伸',
+                groupOther: '其他',
+                consoleSnes: '超级任天堂',
+                consoleNes: '红白机',
+                consoleGb: 'Game Boy',
+                consoleGbc: 'Game Boy Color',
+                consoleGba: 'Game Boy Advance',
+                consoleMd: '世嘉MD',
+                consoleSms: 'Master System',
+                consoleGg: 'Game Gear',
+                consolePce: 'PC Engine',
+                consoleMsx1: 'MSX1',
+                consoleMsx2: 'MSX2',
+                consoleNeogeo: 'Neo Geo'
+            },
+            ko: {
+                subtitle: '이미지를 레트로 게임기 사양으로 변환',
+                dropText: '이미지를 드롭하거나 탭하여 선택',
+                dropHint: 'PNG, JPG, GIF, WebP 지원',
+                settings: '변환 설정',
+                console: '게임기',
+                resolution: '해상도',
+                colorMode: '컬러 모드',
+                dithering: '디더링',
+                aspectRatio: '화면 비율',
+                showGrid: '타일 그리드 표시',
+                original: '원본',
+                converted: '변환 후',
+                palette: '팔레트',
+                colors: '색',
+                download: '변환된 이미지 다운로드',
+                loading: '이미지 로딩 중...',
+                converting: '변환 중...',
+                complete: '변환 완료!',
+                errorFile: '이미지 파일을 선택해주세요',
+                errorLoad: '이미지 로딩 실패',
+                specs: '사양',
+                ditherNone: '없음',
+                ditherFloyd: 'Floyd-Steinberg',
+                ditherOrdered: 'Ordered (Bayer)',
+                aspectFit: '맞춤',
+                aspectFill: '채우기 (자르기)',
+                aspectStretch: '늘리기',
+                groupOther: '기타',
+                consoleSnes: '슈퍼 패미컴',
+                consoleNes: '패미컴',
+                consoleGb: '게임보이',
+                consoleGbc: '게임보이 컬러',
+                consoleGba: '게임보이 어드밴스',
+                consoleMd: '메가드라이브',
+                consoleSms: '마스터 시스템',
+                consoleGg: '게임 기어',
+                consolePce: 'PC엔진',
+                consoleMsx1: 'MSX1',
+                consoleMsx2: 'MSX2',
+                consoleNeogeo: '네오지오'
+            }
+        };
+
+        let currentLang = 'ja';
+
+        function detectLanguage() {
+            const saved = localStorage.getItem('vdp-converter-lang');
+            if (saved && TRANSLATIONS[saved]) return saved;
+
+            const browserLang = navigator.language.slice(0, 2);
+            if (TRANSLATIONS[browserLang]) return browserLang;
+
+            return 'ja';
+        }
+
+        function t(key) {
+            return TRANSLATIONS[currentLang][key] || TRANSLATIONS['ja'][key] || key;
+        }
+
+        function updateLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('vdp-converter-lang', lang);
+            document.documentElement.lang = lang;
+
+            // Update all data-i18n elements
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                el.textContent = t(key);
+            });
+
+            // Update select options
+            updateDitheringOptions();
+            updateAspectRatioOptions();
+            updateConsoleSelect();
+            updateConsoleOptions();
+        }
+
+        function updateDitheringOptions() {
+            const sel = document.getElementById('dithering');
+            sel.innerHTML = `
+                <option value="none">${t('ditherNone')}</option>
+                <option value="floyd">${t('ditherFloyd')}</option>
+                <option value="ordered">${t('ditherOrdered')}</option>
+            `;
+        }
+
+        function updateAspectRatioOptions() {
+            const sel = document.getElementById('aspectRatio');
+            sel.innerHTML = `
+                <option value="fit">${t('aspectFit')}</option>
+                <option value="fill">${t('aspectFill')}</option>
+                <option value="stretch">${t('aspectStretch')}</option>
+            `;
+        }
+
+        function updateConsoleSelect() {
+            const sel = document.getElementById('console');
+            sel.innerHTML = `
+                <optgroup label="Nintendo">
+                    <option value="snes">${t('consoleSnes')} (SNES/SFC)</option>
+                    <option value="nes">${t('consoleNes')} (NES/FC)</option>
+                    <option value="gb">${t('consoleGb')} (GB)</option>
+                    <option value="gbc">${t('consoleGbc')} (GBC)</option>
+                    <option value="gba">${t('consoleGba')} (GBA)</option>
+                </optgroup>
+                <optgroup label="SEGA">
+                    <option value="megadrive">${t('consoleMd')} (Genesis)</option>
+                    <option value="mastersystem">${t('consoleSms')} (SMS)</option>
+                    <option value="gamegear">${t('consoleGg')} (GG)</option>
+                </optgroup>
+                <optgroup label="NEC">
+                    <option value="pce">${t('consolePce')}</option>
+                </optgroup>
+                <optgroup label="MSX">
+                    <option value="msx1">${t('consoleMsx1')} (TMS9918)</option>
+                    <option value="msx2">${t('consoleMsx2')} (V9938)</option>
+                </optgroup>
+                <optgroup label="${t('groupOther')}">
+                    <option value="neogeo">${t('consoleNeogeo')} (Neo Geo)</option>
+                </optgroup>
+            `;
+        }
+
+        // ========================================
+        // Console specifications database
+        // ========================================
+        const CONSOLES = {
+            snes: {
+                nameKey: 'consoleSnes',
+                chip: 'S-PPU (5C77/5C78)',
+                resolutions: [
+                    { value: '256x224', label: '256×224' },
+                    { value: '256x239', label: '256×239' },
+                    { value: '512x224', label: '512×224' },
+                    { value: '512x448', label: '512×448' }
+                ],
+                colorModes: [
+                    { value: '256', label: 'Mode 3/4 (256)' },
+                    { value: '16', label: 'Mode 1/2 (16)' },
+                    { value: '4', label: 'Mode 0 (4)' }
+                ],
+                colorDepth: 15,
+                tileSize: 8,
+                specs: {
+                    ja: ['色深度: 15bit (32,768色)', 'パレット: 最大256色', 'タイルサイズ: 8×8', 'BG面: 最大4面', 'スプライト: 最大128個'],
+                    en: ['Color depth: 15bit (32,768 colors)', 'Palette: up to 256 colors', 'Tile size: 8×8', 'BG layers: up to 4', 'Sprites: up to 128'],
+                    zh: ['色深: 15bit (32,768色)', '调色板: 最多256色', '图块大小: 8×8', 'BG层: 最多4层', '精灵: 最多128个'],
+                    ko: ['색심도: 15bit (32,768색)', '팔레트: 최대 256색', '타일 크기: 8×8', 'BG 레이어: 최대 4개', '스프라이트: 최대 128개']
+                }
+            },
+            nes: {
+                nameKey: 'consoleNes',
+                chip: '2C02 PPU',
+                resolutions: [
+                    { value: '256x240', label: '256×240 (NTSC)' },
+                    { value: '256x224', label: '256×224' }
+                ],
+                colorModes: [
+                    { value: '25', label: '25' },
+                    { value: '13', label: '13' },
+                    { value: '4', label: '4' }
+                ],
+                colorDepth: 6,
+                tileSize: 8,
+                fixedPalette: [
+                    [84,84,84],[0,30,116],[8,16,144],[48,0,136],[68,0,100],[92,0,48],[84,4,0],[60,24,0],[32,42,0],[8,58,0],[0,64,0],[0,60,0],[0,50,60],[0,0,0],[0,0,0],[0,0,0],
+                    [152,150,152],[8,76,196],[48,50,236],[92,30,228],[136,20,176],[160,20,100],[152,34,32],[120,60,0],[84,90,0],[40,114,0],[8,124,0],[0,118,40],[0,102,120],[0,0,0],[0,0,0],[0,0,0],
+                    [236,238,236],[76,154,236],[120,124,236],[176,98,236],[228,84,236],[236,88,180],[236,106,100],[212,136,32],[160,170,0],[116,196,0],[76,208,32],[56,204,108],[56,180,204],[60,60,60],[0,0,0],[0,0,0],
+                    [236,238,236],[168,204,236],[188,188,236],[212,178,236],[236,174,236],[236,174,212],[236,180,176],[228,196,144],[204,210,120],[180,222,120],[168,226,144],[152,226,180],[160,214,228],[160,162,160],[0,0,0],[0,0,0]
+                ],
+                specs: {
+                    ja: ['色深度: 6bit (64色固定)', '同時発色: 最大25色', 'タイルサイズ: 8×8', 'スプライト: 最大64個'],
+                    en: ['Color depth: 6bit (64 fixed)', 'Simultaneous: up to 25', 'Tile size: 8×8', 'Sprites: up to 64'],
+                    zh: ['色深: 6bit (64色固定)', '同时显示: 最多25色', '图块大小: 8×8', '精灵: 最多64个'],
+                    ko: ['색심도: 6bit (64색 고정)', '동시 표시: 최대 25색', '타일 크기: 8×8', '스프라이트: 최대 64개']
+                }
+            },
+            gb: {
+                nameKey: 'consoleGb',
+                chip: 'DMG PPU',
+                resolutions: [{ value: '160x144', label: '160×144' }],
+                colorModes: [{ value: '4', label: '4' }],
+                colorDepth: 2,
+                tileSize: 8,
+                fixedPalette: [[155,188,15],[139,172,15],[48,98,48],[15,56,15]],
+                specs: {
+                    ja: ['色深度: 2bit (4階調)', 'タイルサイズ: 8×8', 'スプライト: 最大40個'],
+                    en: ['Color depth: 2bit (4 shades)', 'Tile size: 8×8', 'Sprites: up to 40'],
+                    zh: ['色深: 2bit (4级灰度)', '图块大小: 8×8', '精灵: 最多40个'],
+                    ko: ['색심도: 2bit (4단계)', '타일 크기: 8×8', '스프라이트: 최대 40개']
+                }
+            },
+            gbc: {
+                nameKey: 'consoleGbc',
+                chip: 'CGB PPU',
+                resolutions: [{ value: '160x144', label: '160×144' }],
+                colorModes: [
+                    { value: '56', label: '56' },
+                    { value: '32', label: '32' },
+                    { value: '4', label: '4' }
+                ],
+                colorDepth: 15,
+                tileSize: 8,
+                specs: {
+                    ja: ['色深度: 15bit (32,768色)', '同時発色: 最大56色', 'タイルサイズ: 8×8'],
+                    en: ['Color depth: 15bit (32,768)', 'Simultaneous: up to 56', 'Tile size: 8×8'],
+                    zh: ['色深: 15bit (32,768色)', '同时显示: 最多56色', '图块大小: 8×8'],
+                    ko: ['색심도: 15bit (32,768색)', '동시 표시: 최대 56색', '타일 크기: 8×8']
+                }
+            },
+            gba: {
+                nameKey: 'consoleGba',
+                chip: 'GBA PPU',
+                resolutions: [{ value: '240x160', label: '240×160' }],
+                colorModes: [
+                    { value: '256', label: '256' },
+                    { value: '32768', label: '32,768' },
+                    { value: '16', label: '16' }
+                ],
+                colorDepth: 15,
+                tileSize: 8,
+                specs: {
+                    ja: ['色深度: 15bit (32,768色)', 'パレット: 最大256色', 'スプライト: 最大128個'],
+                    en: ['Color depth: 15bit (32,768)', 'Palette: up to 256', 'Sprites: up to 128'],
+                    zh: ['色深: 15bit (32,768色)', '调色板: 最多256色', '精灵: 最多128个'],
+                    ko: ['색심도: 15bit (32,768색)', '팔레트: 최대 256색', '스프라이트: 최대 128개']
+                }
+            },
+            megadrive: {
+                nameKey: 'consoleMd',
+                chip: 'VDP (YM7101)',
+                resolutions: [
+                    { value: '320x224', label: '320×224 (H40)' },
+                    { value: '256x224', label: '256×224 (H32)' },
+                    { value: '320x240', label: '320×240 (PAL)' }
+                ],
+                colorModes: [
+                    { value: '64', label: '64' },
+                    { value: '16', label: '16' }
+                ],
+                colorDepth: 9,
+                tileSize: 8,
+                specs: {
+                    ja: ['色深度: 9bit (512色)', '同時発色: 最大64色', 'タイルサイズ: 8×8', 'スプライト: 最大80個'],
+                    en: ['Color depth: 9bit (512)', 'Simultaneous: up to 64', 'Tile size: 8×8', 'Sprites: up to 80'],
+                    zh: ['色深: 9bit (512色)', '同时显示: 最多64色', '图块大小: 8×8', '精灵: 最多80个'],
+                    ko: ['색심도: 9bit (512색)', '동시 표시: 최대 64색', '타일 크기: 8×8', '스프라이트: 최대 80개']
+                }
+            },
+            mastersystem: {
+                nameKey: 'consoleSms',
+                chip: 'VDP (315-5124)',
+                resolutions: [
+                    { value: '256x192', label: '256×192' },
+                    { value: '256x224', label: '256×224' }
+                ],
+                colorModes: [
+                    { value: '32', label: '32' },
+                    { value: '16', label: '16' }
+                ],
+                colorDepth: 6,
+                tileSize: 8,
+                specs: {
+                    ja: ['色深度: 6bit (64色)', '同時発色: 最大32色', 'スプライト: 最大64個'],
+                    en: ['Color depth: 6bit (64)', 'Simultaneous: up to 32', 'Sprites: up to 64'],
+                    zh: ['色深: 6bit (64色)', '同时显示: 最多32色', '精灵: 最多64个'],
+                    ko: ['색심도: 6bit (64색)', '동시 표시: 최대 32색', '스프라이트: 최대 64개']
+                }
+            },
+            gamegear: {
+                nameKey: 'consoleGg',
+                chip: 'VDP (315-5378)',
+                resolutions: [{ value: '160x144', label: '160×144' }],
+                colorModes: [
+                    { value: '32', label: '32' },
+                    { value: '16', label: '16' }
+                ],
+                colorDepth: 12,
+                tileSize: 8,
+                specs: {
+                    ja: ['色深度: 12bit (4,096色)', '同時発色: 最大32色'],
+                    en: ['Color depth: 12bit (4,096)', 'Simultaneous: up to 32'],
+                    zh: ['色深: 12bit (4,096色)', '同时显示: 最多32色'],
+                    ko: ['색심도: 12bit (4,096색)', '동시 표시: 최대 32색']
+                }
+            },
+            pce: {
+                nameKey: 'consolePce',
+                chip: 'HuC6270 VDC',
+                resolutions: [
+                    { value: '256x224', label: '256×224' },
+                    { value: '336x224', label: '336×224' },
+                    { value: '512x224', label: '512×224' }
+                ],
+                colorModes: [
+                    { value: '256', label: '256' },
+                    { value: '16', label: '16' }
+                ],
+                colorDepth: 9,
+                tileSize: 8,
+                specs: {
+                    ja: ['色深度: 9bit (512色)', '同時発色: 最大256色', 'スプライト: 最大64個'],
+                    en: ['Color depth: 9bit (512)', 'Simultaneous: up to 256', 'Sprites: up to 64'],
+                    zh: ['色深: 9bit (512色)', '同时显示: 最多256色', '精灵: 最多64个'],
+                    ko: ['색심도: 9bit (512색)', '동시 표시: 최대 256색', '스프라이트: 최대 64개']
+                }
+            },
+            msx1: {
+                nameKey: 'consoleMsx1',
+                chip: 'TMS9918',
+                resolutions: [{ value: '256x192', label: '256×192' }],
+                colorModes: [
+                    { value: '16', label: '16' },
+                    { value: '2', label: '2' }
+                ],
+                colorDepth: 4,
+                tileSize: 8,
+                fixedPalette: [
+                    [0,0,0],[0,0,0],[33,200,66],[94,220,120],
+                    [84,85,237],[125,118,252],[212,82,77],[66,235,245],
+                    [252,85,84],[255,121,120],[212,193,84],[230,206,128],
+                    [33,176,59],[201,91,186],[204,204,204],[255,255,255]
+                ],
+                specs: {
+                    ja: ['色深度: 4bit (16色固定)', 'スプライト: 最大32個'],
+                    en: ['Color depth: 4bit (16 fixed)', 'Sprites: up to 32'],
+                    zh: ['色深: 4bit (16色固定)', '精灵: 最多32个'],
+                    ko: ['색심도: 4bit (16색 고정)', '스프라이트: 최대 32개']
+                }
+            },
+            msx2: {
+                nameKey: 'consoleMsx2',
+                chip: 'V9938',
+                resolutions: [
+                    { value: '256x212', label: '256×212' },
+                    { value: '512x212', label: '512×212' }
+                ],
+                colorModes: [
+                    { value: '256', label: '256' },
+                    { value: '16', label: '16' },
+                    { value: '4', label: '4' }
+                ],
+                colorDepth: 9,
+                tileSize: 8,
+                specs: {
+                    ja: ['色深度: 9bit (512色)', '同時発色: 最大256色', 'スプライト: 最大32個'],
+                    en: ['Color depth: 9bit (512)', 'Simultaneous: up to 256', 'Sprites: up to 32'],
+                    zh: ['色深: 9bit (512色)', '同时显示: 最多256色', '精灵: 最多32个'],
+                    ko: ['색심도: 9bit (512색)', '동시 표시: 최대 256색', '스프라이트: 최대 32개']
+                }
+            },
+            neogeo: {
+                nameKey: 'consoleNeogeo',
+                chip: 'LSPC2-A2',
+                resolutions: [{ value: '320x224', label: '320×224' }],
+                colorModes: [
+                    { value: '4096', label: '4096' },
+                    { value: '256', label: '256' },
+                    { value: '16', label: '16' }
+                ],
+                colorDepth: 16,
+                tileSize: 16,
+                specs: {
+                    ja: ['色深度: 16bit (65,536色)', '同時発色: 最大4,096色', 'タイルサイズ: 16×16', 'スプライト: 最大380個'],
+                    en: ['Color depth: 16bit (65,536)', 'Simultaneous: up to 4,096', 'Tile size: 16×16', 'Sprites: up to 380'],
+                    zh: ['色深: 16bit (65,536色)', '同时显示: 最多4,096色', '图块大小: 16×16', '精灵: 最多380个'],
+                    ko: ['색심도: 16bit (65,536색)', '동시 표시: 최대 4,096색', '타일 크기: 16×16', '스프라이트: 최대 380개']
+                }
+            }
+        };
+
+        // DOM Elements
+        const langDropdown = document.getElementById('langDropdown');
+        const langDropdownBtn = document.getElementById('langDropdownBtn');
+        const langDropdownMenu = document.getElementById('langDropdownMenu');
+        const langItems = document.querySelectorAll('.lang-dropdown-item');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const consoleSelect = document.getElementById('console');
+        const resolution = document.getElementById('resolution');
+        const colorMode = document.getElementById('colorMode');
+        const ditheringSelect = document.getElementById('dithering');
+        const aspectRatioSelect = document.getElementById('aspectRatio');
+        const showGrid = document.getElementById('showGrid');
+        const status = document.getElementById('status');
+        const previewContainer = document.getElementById('previewContainer');
+        const originalCanvas = document.getElementById('originalCanvas');
+        const convertedCanvas = document.getElementById('convertedCanvas');
+        const convertedTitle = document.getElementById('convertedTitle');
+        const originalInfo = document.getElementById('originalInfo');
+        const convertedInfo = document.getElementById('convertedInfo');
+        const paletteContainer = document.getElementById('paletteContainer');
+        const paletteGrid = document.getElementById('paletteGrid');
+        const paletteCount = document.getElementById('paletteCount');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const specsTitle = document.getElementById('specsTitle');
+        const specsList = document.getElementById('specsList');
+
+        let currentImage = null;
+        let convertedImageData = null;
+
+        // Language names for display
+        const langNames = { ja: '日本語', en: 'English', zh: '中文', ko: '한국어' };
+
+        // Initialize
+        currentLang = detectLanguage();
+        langDropdownBtn.textContent = langNames[currentLang];
+        updateLangDropdownSelection();
+        updateLanguage(currentLang);
+
+        function updateLangDropdownSelection() {
+            langItems.forEach(item => {
+                item.classList.toggle('selected', item.dataset.lang === currentLang);
+            });
+        }
+
+        // Event Listeners - Language dropdown
+        langDropdownBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            langDropdownMenu.classList.toggle('show');
+        });
+
+        langItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const lang = item.dataset.lang;
+                langDropdownBtn.textContent = langNames[lang];
+                langDropdownMenu.classList.remove('show');
+                updateLanguage(lang);
+                updateLangDropdownSelection();
+                if (currentImage) convertImage();
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', () => {
+            langDropdownMenu.classList.remove('show');
+        });
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('dragleave', handleDragLeave);
+        dropZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        consoleSelect.addEventListener('change', () => {
+            updateConsoleOptions();
+            if (currentImage) convertImage();
+        });
+
+        [resolution, colorMode, ditheringSelect, aspectRatioSelect, showGrid].forEach(el => {
+            el.addEventListener('change', () => {
+                if (currentImage) convertImage();
+            });
+        });
+
+        downloadBtn.addEventListener('click', downloadImage);
+
+        function updateConsoleOptions() {
+            const consoleData = CONSOLES[consoleSelect.value];
+
+            resolution.innerHTML = '';
+            consoleData.resolutions.forEach(res => {
+                const opt = document.createElement('option');
+                opt.value = res.value;
+                opt.textContent = res.label;
+                resolution.appendChild(opt);
+            });
+
+            colorMode.innerHTML = '';
+            consoleData.colorModes.forEach(mode => {
+                const opt = document.createElement('option');
+                opt.value = mode.value;
+                opt.textContent = mode.label;
+                colorMode.appendChild(opt);
+            });
+
+            const consoleName = t(consoleData.nameKey);
+            specsTitle.textContent = `${consoleName} (${consoleData.chip}) ${t('specs')}`;
+            specsList.innerHTML = '';
+            const specs = consoleData.specs[currentLang] || consoleData.specs['ja'];
+            specs.forEach(spec => {
+                const li = document.createElement('li');
+                li.textContent = spec;
+                specsList.appendChild(li);
+            });
+
+            convertedTitle.textContent = `${consoleName} ${t('converted')}`;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                loadImage(e.dataTransfer.files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            if (e.target.files.length > 0) {
+                loadImage(e.target.files[0]);
+            }
+        }
+
+        function loadImage(file) {
+            if (!file.type.startsWith('image/')) {
+                showStatusMsg(t('errorFile'), 'error');
+                return;
+            }
+
+            showStatusMsg(`<span class="loading-spinner"></span>${t('loading')}`, 'processing');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    currentImage = img;
+                    showStatusMsg(t('converting'), 'processing');
+                    setTimeout(() => convertImage(), 50);
+                };
+                img.onerror = () => showStatusMsg(t('errorLoad'), 'error');
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function convertImage() {
+            if (!currentImage) return;
+
+            const consoleData = CONSOLES[consoleSelect.value];
+            const [targetWidth, targetHeight] = resolution.value.split('x').map(Number);
+            const maxColors = parseInt(colorMode.value);
+            const ditheringMethod = ditheringSelect.value;
+            const aspect = aspectRatioSelect.value;
+
+            const origCtx = originalCanvas.getContext('2d');
+            originalCanvas.width = currentImage.width;
+            originalCanvas.height = currentImage.height;
+            origCtx.drawImage(currentImage, 0, 0);
+            originalInfo.textContent = `${currentImage.width}×${currentImage.height}`;
+
+            let sx = 0, sy = 0, sw = currentImage.width, sh = currentImage.height;
+
+            if (aspect === 'fill') {
+                const scale = Math.max(targetWidth / currentImage.width, targetHeight / currentImage.height);
+                sw = targetWidth / scale;
+                sh = targetHeight / scale;
+                sx = (currentImage.width - sw) / 2;
+                sy = (currentImage.height - sh) / 2;
+            }
+
+            convertedCanvas.width = targetWidth;
+            convertedCanvas.height = targetHeight;
+            const ctx = convertedCanvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+
+            if (aspect === 'fit') {
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, targetWidth, targetHeight);
+                const scale = Math.min(targetWidth / currentImage.width, targetHeight / currentImage.height);
+                const dw = currentImage.width * scale;
+                const dh = currentImage.height * scale;
+                ctx.drawImage(currentImage, (targetWidth - dw) / 2, (targetHeight - dh) / 2, dw, dh);
+            } else if (aspect === 'fill') {
+                ctx.drawImage(currentImage, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+            } else {
+                ctx.drawImage(currentImage, 0, 0, targetWidth, targetHeight);
+            }
+
+            let imageData = ctx.getImageData(0, 0, targetWidth, targetHeight);
+            imageData = convertColorDepth(imageData, consoleData.colorDepth);
+
+            let palette;
+            if (consoleData.fixedPalette) {
+                const result = applyFixedPalette(imageData, consoleData.fixedPalette, maxColors, ditheringMethod);
+                imageData = result.imageData;
+                palette = result.palette;
+            } else {
+                const result = reduceColors(imageData, maxColors, ditheringMethod);
+                imageData = result.imageData;
+                palette = result.palette;
+            }
+
+            ctx.putImageData(imageData, 0, 0);
+
+            if (showGrid.checked) {
+                drawGrid(ctx, targetWidth, targetHeight, consoleData.tileSize);
+            }
+
+            convertedImageData = imageData;
+            convertedInfo.textContent = `${targetWidth}×${targetHeight} / ${palette.length}${t('colors')}`;
+
+            displayPalette(palette);
+
+            previewContainer.classList.add('visible');
+            paletteContainer.classList.add('visible');
+            downloadBtn.disabled = false;
+
+            showStatusMsg(t('complete'), 'success');
+        }
+
+        function convertColorDepth(imageData, depth) {
+            const data = imageData.data;
+            let bits;
+            switch(depth) {
+                case 2: bits = 2; break;
+                case 4: bits = 4; break;
+                case 6: bits = 2; break;
+                case 9: bits = 3; break;
+                case 12: bits = 4; break;
+                case 15: case 16: bits = 5; break;
+                default: bits = 5;
+            }
+            const max = (1 << bits) - 1;
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = Math.round(data[i] / 255 * max) * 255 / max;
+                data[i+1] = Math.round(data[i+1] / 255 * max) * 255 / max;
+                data[i+2] = Math.round(data[i+2] / 255 * max) * 255 / max;
+            }
+            return imageData;
+        }
+
+        function applyFixedPalette(imageData, fixedPalette, maxColors, method) {
+            const data = imageData.data;
+            const w = imageData.width, h = imageData.height;
+            const palette = fixedPalette.slice(0, Math.min(maxColors, fixedPalette.length));
+            if (method === 'floyd') applyFloydSteinberg(data, w, h, palette);
+            else if (method === 'ordered') applyOrderedDither(data, w, h, palette);
+            else applyNoDither(data, palette);
+            return { imageData, palette };
+        }
+
+        function reduceColors(imageData, maxColors, method) {
+            const data = imageData.data;
+            const w = imageData.width, h = imageData.height;
+            const colorMap = new Map();
+            for (let i = 0; i < data.length; i += 4) {
+                if (data[i+3] === 0) continue;
+                const key = `${data[i]},${data[i+1]},${data[i+2]}`;
+                colorMap.set(key, (colorMap.get(key) || 0) + 1);
+            }
+            if (colorMap.size <= maxColors) {
+                const palette = Array.from(colorMap.keys()).map(k => k.split(',').map(Number));
+                return { imageData, palette };
+            }
+            let colors = Array.from(colorMap.entries()).map(([k, c]) => ({ color: k.split(',').map(Number), count: c }));
+            let buckets = [colors];
+            while (buckets.length < maxColors) {
+                let maxR = -1, maxIdx = 0, maxCh = 0;
+                buckets.forEach((b, i) => {
+                    if (b.length < 2) return;
+                    for (let ch = 0; ch < 3; ch++) {
+                        const vals = b.map(c => c.color[ch]);
+                        const r = Math.max(...vals) - Math.min(...vals);
+                        if (r > maxR) { maxR = r; maxIdx = i; maxCh = ch; }
+                    }
+                });
+                if (maxR <= 0) break;
+                const b = buckets[maxIdx];
+                b.sort((a, c) => a.color[maxCh] - c.color[maxCh]);
+                const mid = Math.floor(b.length / 2);
+                buckets.splice(maxIdx, 1, b.slice(0, mid), b.slice(mid));
+            }
+            const palette = buckets.map(b => {
+                let tot = 0, r = 0, g = 0, bl = 0;
+                b.forEach(({color, count}) => { r += color[0]*count; g += color[1]*count; bl += color[2]*count; tot += count; });
+                return [Math.round(r/tot), Math.round(g/tot), Math.round(bl/tot)];
+            });
+            if (method === 'floyd') applyFloydSteinberg(data, w, h, palette);
+            else if (method === 'ordered') applyOrderedDither(data, w, h, palette);
+            else applyNoDither(data, palette);
+            return { imageData, palette };
+        }
+
+        function findNearest(r, g, b, palette) {
+            let min = Infinity, near = palette[0];
+            for (const c of palette) {
+                const d = (r-c[0])**2 + (g-c[1])**2 + (b-c[2])**2;
+                if (d < min) { min = d; near = c; }
+            }
+            return near;
+        }
+
+        function applyNoDither(data, palette) {
+            for (let i = 0; i < data.length; i += 4) {
+                const n = findNearest(data[i], data[i+1], data[i+2], palette);
+                data[i] = n[0]; data[i+1] = n[1]; data[i+2] = n[2];
+            }
+        }
+
+        function applyFloydSteinberg(data, w, h, palette) {
+            const err = new Float32Array(w * h * 3);
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const i = (y * w + x) * 4, ei = (y * w + x) * 3;
+                    const oR = Math.max(0, Math.min(255, data[i] + err[ei]));
+                    const oG = Math.max(0, Math.min(255, data[i+1] + err[ei+1]));
+                    const oB = Math.max(0, Math.min(255, data[i+2] + err[ei+2]));
+                    const n = findNearest(oR, oG, oB, palette);
+                    data[i] = n[0]; data[i+1] = n[1]; data[i+2] = n[2];
+                    const eR = oR - n[0], eG = oG - n[1], eB = oB - n[2];
+                    const dist = (dx, dy, f) => {
+                        const nx = x + dx, ny = y + dy;
+                        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+                            const nei = (ny * w + nx) * 3;
+                            err[nei] += eR * f; err[nei+1] += eG * f; err[nei+2] += eB * f;
+                        }
+                    };
+                    dist(1,0,7/16); dist(-1,1,3/16); dist(0,1,5/16); dist(1,1,1/16);
+                }
+            }
+        }
+
+        function applyOrderedDither(data, w, h, palette) {
+            const bayer = [[0,8,2,10],[12,4,14,6],[3,11,1,9],[15,7,13,5]];
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const i = (y * w + x) * 4;
+                    const th = (bayer[y%4][x%4] / 16 - 0.5) * 64;
+                    const r = Math.max(0, Math.min(255, data[i] + th));
+                    const g = Math.max(0, Math.min(255, data[i+1] + th));
+                    const b = Math.max(0, Math.min(255, data[i+2] + th));
+                    const n = findNearest(r, g, b, palette);
+                    data[i] = n[0]; data[i+1] = n[1]; data[i+2] = n[2];
+                }
+            }
+        }
+
+        function drawGrid(ctx, w, h, size) {
+            ctx.strokeStyle = 'rgba(255,0,0,0.5)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= w; x += size) { ctx.beginPath(); ctx.moveTo(x+.5,0); ctx.lineTo(x+.5,h); ctx.stroke(); }
+            for (let y = 0; y <= h; y += size) { ctx.beginPath(); ctx.moveTo(0,y+.5); ctx.lineTo(w,y+.5); ctx.stroke(); }
+        }
+
+        function displayPalette(palette) {
+            paletteGrid.innerHTML = '';
+            paletteCount.textContent = palette.length;
+            palette.forEach(([r,g,b]) => {
+                const div = document.createElement('div');
+                div.className = 'palette-color';
+                div.style.backgroundColor = `rgb(${r},${g},${b})`;
+                div.title = `RGB(${r},${g},${b})`;
+                paletteGrid.appendChild(div);
+            });
+        }
+
+        function showStatusMsg(msg, type) {
+            status.innerHTML = msg;
+            status.className = `status visible ${type}`;
+        }
+
+        function downloadImage() {
+            if (!convertedImageData) return;
+            const link = document.createElement('a');
+            link.download = `${consoleSelect.value}_converted.png`;
+            link.href = convertedCanvas.toDataURL('image/png');
+            link.click();
+        }
+    </script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(r => console.log('SW registered:', r.scope))
+                    .catch(e => console.log('SW failed:', e));
+            });
+        }
+    </script>
+</body>
+</html>

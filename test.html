@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro VDP Converter - テスト</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #e94560;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #888;
+            font-size: 1rem;
+            margin: 20px 0 10px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+        .test-result {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .pass {
+            background: rgba(76, 175, 80, 0.2);
+            border-left: 3px solid #4caf50;
+        }
+        .fail {
+            background: rgba(244, 67, 54, 0.2);
+            border-left: 3px solid #f44336;
+        }
+        .summary {
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .stat-box {
+            padding: 15px 25px;
+            border-radius: 8px;
+            text-align: center;
+            min-width: 100px;
+        }
+        .stat-box.total {
+            background: rgba(255,255,255,0.1);
+        }
+        .stat-box.pass {
+            background: rgba(76, 175, 80, 0.2);
+            border: 2px solid #4caf50;
+        }
+        .stat-box.fail {
+            background: rgba(244, 67, 54, 0.2);
+            border: 2px solid #f44336;
+        }
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 4px;
+        }
+        .stat-box.pass .stat-number { color: #4caf50; }
+        .stat-box.fail .stat-number { color: #f44336; }
+        .stat-box.total .stat-number { color: #fff; }
+        .all-pass {
+            background: linear-gradient(135deg, #4caf50, #2e7d32);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .has-fail {
+            background: linear-gradient(135deg, #f44336, #c62828);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .summary-pass { color: #4caf50; }
+        .summary-fail { color: #f44336; }
+        .error-detail {
+            font-size: 0.8rem;
+            color: #f44336;
+            margin-top: 4px;
+            padding-left: 20px;
+        }
+        #runBtn {
+            background: linear-gradient(135deg, #e94560, #0f3460);
+            color: #fff;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        #runBtn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <h1>Retro VDP Converter テスト</h1>
+    <button id="runBtn">テスト実行</button>
+    <div id="summary" class="summary" style="display:none;"></div>
+    <div id="results"></div>
+
+    <script>
+        // ========================================
+        // テスト対象の関数（index.htmlからコピー）
+        // ========================================
+
+        const CONSOLES = {
+            snes: {
+                name: 'スーパーファミコン',
+                chip: 'S-PPU (5C77/5C78)',
+                resolutions: [
+                    { value: '256x224', label: '256×224 (標準)' },
+                    { value: '512x448', label: '512×448 (インターレース)' }
+                ],
+                colorModes: [
+                    { value: '256', label: 'Mode 3/4 (256色)' },
+                    { value: '16', label: 'Mode 1/2 (16色)' }
+                ],
+                colorDepth: 15,
+                tileSize: 8
+            },
+            nes: {
+                name: 'ファミコン',
+                chip: '2C02 PPU',
+                colorDepth: 6,
+                tileSize: 8,
+                fixedPalette: [
+                    [84,84,84],[0,30,116],[8,16,144],[48,0,136]
+                ]
+            },
+            gb: {
+                name: 'ゲームボーイ',
+                chip: 'DMG PPU',
+                colorDepth: 2,
+                tileSize: 8,
+                fixedPalette: [
+                    [155, 188, 15],
+                    [139, 172, 15],
+                    [48, 98, 48],
+                    [15, 56, 15]
+                ]
+            },
+            megadrive: {
+                name: 'メガドライブ',
+                chip: 'VDP (YM7101)',
+                colorDepth: 9,
+                tileSize: 8
+            }
+        };
+
+        function convertColorDepth(imageData, depth) {
+            const data = imageData.data;
+            let bitsPerChannel;
+
+            switch(depth) {
+                case 2: bitsPerChannel = 2; break;
+                case 4: bitsPerChannel = 4; break;
+                case 6: bitsPerChannel = 2; break;
+                case 9: bitsPerChannel = 3; break;
+                case 12: bitsPerChannel = 4; break;
+                case 15: bitsPerChannel = 5; break;
+                case 16: bitsPerChannel = 5; break;
+                default: bitsPerChannel = 5;
+            }
+
+            const maxVal = (1 << bitsPerChannel) - 1;
+
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = Math.round(data[i] / 255 * maxVal) * 255 / maxVal;
+                data[i + 1] = Math.round(data[i + 1] / 255 * maxVal) * 255 / maxVal;
+                data[i + 2] = Math.round(data[i + 2] / 255 * maxVal) * 255 / maxVal;
+            }
+            return imageData;
+        }
+
+        function findNearestColor(r, g, b, palette) {
+            let minDist = Infinity;
+            let nearest = palette[0];
+
+            for (const color of palette) {
+                const dr = r - color[0];
+                const dg = g - color[1];
+                const db = b - color[2];
+                const dist = dr * dr + dg * dg + db * db;
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearest = color;
+                }
+            }
+            return nearest;
+        }
+
+        function applyNoDither(data, palette) {
+            for (let i = 0; i < data.length; i += 4) {
+                const nearest = findNearestColor(data[i], data[i+1], data[i+2], palette);
+                data[i] = nearest[0];
+                data[i + 1] = nearest[1];
+                data[i + 2] = nearest[2];
+            }
+        }
+
+        // ========================================
+        // テストフレームワーク
+        // ========================================
+
+        let testResults = { pass: 0, fail: 0, tests: [] };
+
+        function assert(condition, message) {
+            if (!condition) {
+                throw new Error(message);
+            }
+        }
+
+        function assertEqual(actual, expected, message) {
+            if (actual !== expected) {
+                throw new Error(`${message}: expected ${expected}, got ${actual}`);
+            }
+        }
+
+        function assertArrayEqual(actual, expected, message) {
+            if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                throw new Error(`${message}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+            }
+        }
+
+        function assertApprox(actual, expected, tolerance, message) {
+            if (Math.abs(actual - expected) > tolerance) {
+                throw new Error(`${message}: expected ~${expected}, got ${actual}`);
+            }
+        }
+
+        function runTest(name, testFn) {
+            try {
+                testFn();
+                testResults.pass++;
+                testResults.tests.push({ name, passed: true });
+            } catch (e) {
+                testResults.fail++;
+                testResults.tests.push({ name, passed: false, error: e.message });
+            }
+        }
+
+        function displayResults() {
+            const resultsDiv = document.getElementById('results');
+            const summaryDiv = document.getElementById('summary');
+
+            let html = '';
+            let currentGroup = '';
+
+            testResults.tests.forEach(test => {
+                const group = test.name.split(':')[0];
+                if (group !== currentGroup) {
+                    html += `<h2>${group}</h2>`;
+                    currentGroup = group;
+                }
+
+                const status = test.passed ? 'pass' : 'fail';
+                const icon = test.passed ? '✓' : '✗';
+                html += `<div class="test-result ${status}">${icon} ${test.name}</div>`;
+                if (!test.passed) {
+                    html += `<div class="error-detail">${test.error}</div>`;
+                }
+            });
+
+            resultsDiv.innerHTML = html;
+
+            const total = testResults.pass + testResults.fail;
+            const statusClass = testResults.fail === 0 ? 'all-pass' : 'has-fail';
+            const statusText = testResults.fail === 0 ? '✓ ALL TESTS PASSED' : '✗ SOME TESTS FAILED';
+
+            summaryDiv.style.display = 'block';
+            summaryDiv.innerHTML = `
+                <div class="summary-stats">
+                    <div class="stat-box total">
+                        <div class="stat-number">${total}</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-box pass">
+                        <div class="stat-number">${testResults.pass}</div>
+                        <div class="stat-label">OK</div>
+                    </div>
+                    <div class="stat-box fail">
+                        <div class="stat-number">${testResults.fail}</div>
+                        <div class="stat-label">NG</div>
+                    </div>
+                    <div class="${statusClass}">${statusText}</div>
+                </div>
+            `;
+        }
+
+        // ========================================
+        // テストケース
+        // ========================================
+
+        function runAllTests() {
+            testResults = { pass: 0, fail: 0, tests: [] };
+
+            // コンソール設定テスト
+            runTest('CONSOLES: SNESが存在する', () => {
+                assert(CONSOLES.snes !== undefined, 'SNES not found');
+            });
+
+            runTest('CONSOLES: SNESの色深度が15bit', () => {
+                assertEqual(CONSOLES.snes.colorDepth, 15, 'Color depth mismatch');
+            });
+
+            runTest('CONSOLES: メガドライブの色深度が9bit', () => {
+                assertEqual(CONSOLES.megadrive.colorDepth, 9, 'Color depth mismatch');
+            });
+
+            runTest('CONSOLES: ゲームボーイの色深度が2bit', () => {
+                assertEqual(CONSOLES.gb.colorDepth, 2, 'Color depth mismatch');
+            });
+
+            runTest('CONSOLES: SNESのタイルサイズが8', () => {
+                assertEqual(CONSOLES.snes.tileSize, 8, 'Tile size mismatch');
+            });
+
+            runTest('CONSOLES: ゲームボーイの固定パレットが4色', () => {
+                assertEqual(CONSOLES.gb.fixedPalette.length, 4, 'Palette length mismatch');
+            });
+
+            // 色深度変換テスト
+            runTest('convertColorDepth: 15bit変換（白）', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1;
+                canvas.height = 1;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, 1, 1);
+                let imageData = ctx.getImageData(0, 0, 1, 1);
+                imageData = convertColorDepth(imageData, 15);
+                assertEqual(imageData.data[0], 255, 'Red channel');
+                assertEqual(imageData.data[1], 255, 'Green channel');
+                assertEqual(imageData.data[2], 255, 'Blue channel');
+            });
+
+            runTest('convertColorDepth: 15bit変換（黒）', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1;
+                canvas.height = 1;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, 1, 1);
+                let imageData = ctx.getImageData(0, 0, 1, 1);
+                imageData = convertColorDepth(imageData, 15);
+                assertEqual(imageData.data[0], 0, 'Red channel');
+                assertEqual(imageData.data[1], 0, 'Green channel');
+                assertEqual(imageData.data[2], 0, 'Blue channel');
+            });
+
+            runTest('convertColorDepth: 15bit変換（中間値が量子化される）', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1;
+                canvas.height = 1;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'rgb(100, 100, 100)';
+                ctx.fillRect(0, 0, 1, 1);
+                let imageData = ctx.getImageData(0, 0, 1, 1);
+                const originalR = imageData.data[0];
+                imageData = convertColorDepth(imageData, 15);
+                // 5bitに量子化されるので、元の値と異なる可能性がある
+                const quantized = Math.round(originalR / 255 * 31) * 255 / 31;
+                assertApprox(imageData.data[0], quantized, 1, 'Quantization');
+            });
+
+            runTest('convertColorDepth: 9bit変換（RGB333）', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 1;
+                canvas.height = 1;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = 'rgb(128, 128, 128)';
+                ctx.fillRect(0, 0, 1, 1);
+                let imageData = ctx.getImageData(0, 0, 1, 1);
+                imageData = convertColorDepth(imageData, 9);
+                // 3bitに量子化: 128 -> round(128/255*7)*255/7 ≈ 146
+                const expected = Math.round(128 / 255 * 7) * 255 / 7;
+                assertApprox(imageData.data[0], expected, 1, 'RGB333 quantization');
+            });
+
+            // findNearestColor テスト
+            runTest('findNearestColor: 完全一致', () => {
+                const palette = [[255, 0, 0], [0, 255, 0], [0, 0, 255]];
+                const result = findNearestColor(255, 0, 0, palette);
+                assertArrayEqual(result, [255, 0, 0], 'Exact match red');
+            });
+
+            runTest('findNearestColor: 近似一致（赤に近い）', () => {
+                const palette = [[255, 0, 0], [0, 255, 0], [0, 0, 255]];
+                const result = findNearestColor(200, 50, 50, palette);
+                assertArrayEqual(result, [255, 0, 0], 'Nearest to red');
+            });
+
+            runTest('findNearestColor: 近似一致（緑に近い）', () => {
+                const palette = [[255, 0, 0], [0, 255, 0], [0, 0, 255]];
+                const result = findNearestColor(50, 200, 50, palette);
+                assertArrayEqual(result, [0, 255, 0], 'Nearest to green');
+            });
+
+            runTest('findNearestColor: GBパレット（白に近い）', () => {
+                const gbPalette = CONSOLES.gb.fixedPalette;
+                const result = findNearestColor(255, 255, 255, gbPalette);
+                assertArrayEqual(result, [155, 188, 15], 'Nearest to lightest GB color');
+            });
+
+            runTest('findNearestColor: GBパレット（黒に近い）', () => {
+                const gbPalette = CONSOLES.gb.fixedPalette;
+                const result = findNearestColor(0, 0, 0, gbPalette);
+                assertArrayEqual(result, [15, 56, 15], 'Nearest to darkest GB color');
+            });
+
+            // applyNoDither テスト
+            runTest('applyNoDither: 単一ピクセル変換', () => {
+                const data = new Uint8ClampedArray([255, 100, 50, 255]);
+                const palette = [[255, 0, 0], [0, 255, 0]];
+                applyNoDither(data, palette);
+                assertArrayEqual([data[0], data[1], data[2]], [255, 0, 0], 'Converted to red');
+            });
+
+            runTest('applyNoDither: 複数ピクセル変換', () => {
+                const data = new Uint8ClampedArray([
+                    255, 0, 0, 255,   // 赤
+                    0, 255, 0, 255,   // 緑
+                    0, 0, 255, 255    // 青
+                ]);
+                const palette = [[255, 0, 0], [0, 255, 0], [0, 0, 255]];
+                applyNoDither(data, palette);
+                assertArrayEqual([data[0], data[1], data[2]], [255, 0, 0], 'Pixel 1');
+                assertArrayEqual([data[4], data[5], data[6]], [0, 255, 0], 'Pixel 2');
+                assertArrayEqual([data[8], data[9], data[10]], [0, 0, 255], 'Pixel 3');
+            });
+
+            // 解像度パース テスト
+            runTest('Resolution: 256x224のパース', () => {
+                const [w, h] = '256x224'.split('x').map(Number);
+                assertEqual(w, 256, 'Width');
+                assertEqual(h, 224, 'Height');
+            });
+
+            runTest('Resolution: 512x448のパース', () => {
+                const [w, h] = '512x448'.split('x').map(Number);
+                assertEqual(w, 512, 'Width');
+                assertEqual(h, 448, 'Height');
+            });
+
+            // Canvas API テスト
+            runTest('Canvas: ImageData作成', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 10;
+                canvas.height = 10;
+                const ctx = canvas.getContext('2d');
+                const imageData = ctx.getImageData(0, 0, 10, 10);
+                assertEqual(imageData.width, 10, 'Width');
+                assertEqual(imageData.height, 10, 'Height');
+                assertEqual(imageData.data.length, 10 * 10 * 4, 'Data length');
+            });
+
+            runTest('Canvas: fillRectで塗りつぶし', () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 2;
+                canvas.height = 2;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(0, 0, 2, 2);
+                const imageData = ctx.getImageData(0, 0, 2, 2);
+                assertEqual(imageData.data[0], 255, 'Red channel');
+                assertEqual(imageData.data[1], 0, 'Green channel');
+                assertEqual(imageData.data[2], 0, 'Blue channel');
+            });
+
+            displayResults();
+        }
+
+        document.getElementById('runBtn').addEventListener('click', runAllTests);
+
+        // 自動実行
+        window.addEventListener('load', runAllTests);
+    </script>
+</body>
+</html>
